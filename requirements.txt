@@ -1,1 +1,4 @@
 # Add your dependencies here
+faker
+psycopg[binary]
+python-dotenv
