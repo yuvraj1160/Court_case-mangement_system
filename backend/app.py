@@ -435,6 +435,9 @@ def create_app(
     from backend.auth.routes import auth_bp
     app.register_blueprint(auth_bp, url_prefix="/auth")
 
+    from backend.dashboard.routes import dashboard_bp
+    app.register_blueprint(dashboard_bp, url_prefix="/api")
+
     # -----------------------------------------------------------------------
     # Core Endpoints
     # -----------------------------------------------------------------------
