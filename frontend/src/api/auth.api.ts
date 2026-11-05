@@ -7,7 +7,7 @@
  *   GET  /auth/me         - Validates active session and retrieves user identity
  */
 
-import { apiClient, csrfManager } from './client';
+import { apiClient, csrfManager } from './client.ts';
 import type {
   CsrfTokenResponse,
   CurrentUserResponse,
