@@ -2,3 +2,12 @@
 faker
 psycopg[binary]
 python-dotenv
+Flask
+
+# Authentication, Session & Security
+argon2-cffi>=23.1.0
+Flask-Session>=0.8.0
+Flask-WTF>=1.2.1
+Flask-Limiter>=3.5.0
+cachelib>=0.13.0
+redis>=5.0.0

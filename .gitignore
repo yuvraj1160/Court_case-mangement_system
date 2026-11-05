@@ -30,6 +30,10 @@ wheels/
 .env
 .env.local
 
+# Flask server-side session files
+.flask_session/
+flask_session/
+
 # IDE
 .vscode/
 .idea/
