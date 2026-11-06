@@ -5,7 +5,11 @@ import { useAuth } from '../context';
 
 const CURRENT_YEAR = 2026;
 
-export const RootLayout: React.FC = () => {
+interface RootLayoutProps {
+  children?: React.ReactNode;
+}
+
+export const RootLayout: React.FC<RootLayoutProps> = ({ children }) => {
   const { user, loading, logout } = useAuth();
 
   const handleLogout = async () => {
@@ -80,7 +84,7 @@ export const RootLayout: React.FC = () => {
       </header>
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <Outlet />
+        {children ?? <Outlet />}
       </main>
 
       <footer className="bg-white border-t border-slate-200 py-4 text-center text-xs text-slate-500">

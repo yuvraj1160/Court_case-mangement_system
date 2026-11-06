@@ -4,15 +4,15 @@
  * Route Hierarchy:
  *   /            -> RootRedirect (routes to /${user.role} if logged in, /login if guest)
  *   /login       -> LoginPage (public; redirects to /${user.role} if already logged in)
- *   /admin       -> AdminDashboardPage (protected, requires role: 'admin')
- *   /clerk       -> ClerkDashboardPage (protected, requires role: 'clerk')
- *   /judge       -> JudgeDashboardPage (protected, requires role: 'judge')
- *   *            -> NotFoundPage (404)
+ *   /admin       -> AdminDashboardPage (protected, requires role: 'admin', wrapped in DashboardLayout)
+ *   /clerk       -> ClerkDashboardPage (protected, requires role: 'clerk', wrapped in DashboardLayout)
+ *   /judge       -> JudgeDashboardPage (protected, requires role: 'judge', wrapped in DashboardLayout)
+ *   *            -> NotFoundPage (404, wrapped in RootLayout)
  */
 
 import React from 'react';
 import { Routes, Route } from 'react-router-dom';
-import { RootLayout } from '../layouts/RootLayout';
+import { RootLayout, DashboardLayout } from '../layouts';
 import { ProtectedRoute } from './ProtectedRoute';
 import { RoleGuard } from './RoleGuard';
 import { RootRedirect } from '../pages/RootRedirect';
@@ -25,15 +25,15 @@ import { NotFoundPage } from '../pages/NotFoundPage';
 export const AppRoutes: React.FC = () => {
   return (
     <Routes>
-      <Route path="/" element={<RootLayout />}>
-        {/* Public root index redirect */}
-        <Route index element={<RootRedirect />} />
+      {/* Public root index redirect */}
+      <Route index element={<RootRedirect />} />
 
-        {/* Public login route */}
-        <Route path="login" element={<LoginPage />} />
+      {/* Public login route */}
+      <Route path="login" element={<LoginPage />} />
 
-        {/* Role-guarded protected routes */}
-        <Route element={<ProtectedRoute />}>
+      {/* Role-guarded protected routes wrapped in shared DashboardLayout */}
+      <Route element={<ProtectedRoute />}>
+        <Route element={<DashboardLayout />}>
           <Route element={<RoleGuard allowedRoles={['admin']} />}>
             <Route path="admin" element={<AdminDashboardPage />} />
           </Route>
@@ -46,8 +46,10 @@ export const AppRoutes: React.FC = () => {
             <Route path="judge" element={<JudgeDashboardPage />} />
           </Route>
         </Route>
+      </Route>
 
-        {/* Catch-all 404 route */}
+      {/* Catch-all 404 route */}
+      <Route element={<RootLayout />}>
         <Route path="*" element={<NotFoundPage />} />
       </Route>
     </Routes>
