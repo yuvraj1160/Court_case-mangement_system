@@ -17,7 +17,7 @@ import {
   Briefcase,
   BookOpen,
 } from 'lucide-react';
-import type { UserRole } from '../types';
+import type { UserRole, RecentFiling } from '../types';
 
 export interface NavItemConfig {
   id: string;
@@ -169,4 +169,18 @@ export function formatDateTimeSafe(val: string | null | undefined): string {
   if (!val) return '—';
   const d = new Date(val);
   return isNaN(d.getTime()) ? '—' : d.toLocaleString();
+}
+
+/**
+ * Safely format filing status for live or registry records.
+ * The backend filings table does not project a status column.
+ * Live filings without an explicit status property must display 'Status Unavailable'.
+ */
+export function getLiveFilingStatus(filing: RecentFiling | null | undefined): string {
+  if (!filing) return 'Status Unavailable';
+  const candidate = (filing as { status?: unknown }).status;
+  if (typeof candidate === 'string' && candidate.trim().length > 0) {
+    return candidate.trim();
+  }
+  return 'Status Unavailable';
 }

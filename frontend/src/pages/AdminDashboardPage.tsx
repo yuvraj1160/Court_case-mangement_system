@@ -27,11 +27,12 @@ import {
   ArrowUpRight,
   Clock,
   CheckCircle2,
+  AlertCircle,
 } from 'lucide-react';
 import { useAuth } from '../context';
+import { useDashboardData } from '../hooks';
 import { StatCard, StatusBadge, EmptyState } from '../components';
 import {
-  MOCK_ADMIN_DASHBOARD,
   MOCK_SYSTEM_USERS,
   MOCK_JUDICIAL_ROSTER,
   MOCK_PARTIES_ROSTER,
@@ -45,9 +46,13 @@ import {
   formatDateTimeSafe,
   type AdminTab,
 } from '../layouts/dashboardNavigation';
+import type { User } from '../types';
 
-export const AdminDashboardPage: React.FC = () => {
-  const { user } = useAuth();
+interface AdminDashboardContentProps {
+  user: User;
+}
+
+const AdminDashboardContent: React.FC<AdminDashboardContentProps> = ({ user }) => {
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = resolveActiveTab('admin', searchParams.get('tab')) as AdminTab;
 
@@ -62,9 +67,133 @@ export const AdminDashboardPage: React.FC = () => {
     setSearchParams((prev) => buildPreservedTabSearchParams(prev, tab));
   };
 
-  const dashboardData = MOCK_ADMIN_DASHBOARD;
+  const {
+    data: liveData,
+    isLoading,
+    error,
+    refetch,
+  } = useDashboardData('admin', { userId: user.user_id });
 
-  // Filtered users
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-6 border-b border-slate-200">
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2.5">
+                <Shield className="h-7 w-7 text-indigo-600" />
+                Executive Judicial Administration
+              </h1>
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                System Administration
+              </span>
+            </div>
+            <p className="text-sm text-slate-500 mt-1">
+              Live enterprise court oversight, judicial personnel, dockets, and audit telemetry
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-col items-center justify-center py-24 space-y-4">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600" />
+          <p className="text-sm font-medium text-slate-500">
+            Connecting to administration service and loading system telemetry...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-6 border-b border-slate-200">
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2.5">
+                <Shield className="h-7 w-7 text-indigo-600" />
+                Executive Judicial Administration
+              </h1>
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                System Administration
+              </span>
+            </div>
+            <p className="text-sm text-slate-500 mt-1">
+              Live enterprise court oversight, judicial personnel, dockets, and audit telemetry
+            </p>
+          </div>
+
+          <div className="flex items-center space-x-3 bg-white px-4 py-2.5 rounded-xl border border-slate-200 shadow-xs">
+            <div className="h-9 w-9 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-sm uppercase border border-indigo-100">
+              {user?.username.charAt(0) || 'A'}
+            </div>
+            <div className="text-left text-xs">
+              <p className="font-semibold text-slate-900">{user?.username}</p>
+              <p className="text-slate-500">Administrator &bull; UID #{user?.user_id}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="p-6 bg-white rounded-xl border border-rose-200 shadow-xs space-y-4">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="h-6 w-6 text-rose-600 shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <h3 className="text-base font-semibold text-rose-900">
+                Administration API Connection Error
+              </h3>
+              <p className="text-sm text-rose-700">{error}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 pt-2">
+            <button
+              type="button"
+              onClick={() => void refetch()}
+              className="px-4 py-2 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white transition-colors cursor-pointer"
+            >
+              Retry Connection
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!liveData) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-6 border-b border-slate-200">
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2.5">
+                <Shield className="h-7 w-7 text-indigo-600" />
+                Executive Judicial Administration
+              </h1>
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                System Administration
+              </span>
+            </div>
+            <p className="text-sm text-slate-500 mt-1">
+              Live enterprise court oversight, judicial personnel, dockets, and audit telemetry
+            </p>
+          </div>
+        </div>
+
+        <EmptyState
+          title="Dashboard Data Unavailable"
+          description="System metrics and operational data could not be retrieved from the server."
+          icon={Activity}
+          actionLabel="Retry Connection"
+          onAction={() => void refetch()}
+        />
+      </div>
+    );
+  }
+
+  const dashboardData = liveData;
+
+  // Filtered users (Mock Preview)
   const filteredUsers = MOCK_SYSTEM_USERS.filter((u) => {
     const matchesSearch =
       u.username.toLowerCase().includes(userSearch.toLowerCase()) ||
@@ -73,7 +202,7 @@ export const AdminDashboardPage: React.FC = () => {
     return matchesSearch && matchesRole;
   });
 
-  // Filtered cases
+  // Filtered cases (Mock Preview)
   const filteredCases = MOCK_RECENT_CASES.filter((c) => {
     const matchesSearch =
       !caseSearch ||
@@ -84,7 +213,7 @@ export const AdminDashboardPage: React.FC = () => {
     return matchesSearch && matchesStatus;
   });
 
-  // Filtered parties
+  // Filtered parties (Mock Preview)
   const filteredParties = MOCK_PARTIES_ROSTER.filter((p) => {
     return (
       p.name.toLowerCase().includes(partySearch.toLowerCase()) ||
@@ -105,6 +234,9 @@ export const AdminDashboardPage: React.FC = () => {
             </h1>
             <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
               Admin Level
+            </span>
+            <span className="px-2 py-0.5 rounded text-[10px] font-mono font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+              Live API Connected
             </span>
           </div>
           <p className="text-sm text-slate-500 mt-1">
@@ -392,9 +524,14 @@ export const AdminDashboardPage: React.FC = () => {
         <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
           <div className="p-5 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <h2 className="text-base font-bold text-slate-900">User Directory & Roles</h2>
-              <p className="text-xs text-slate-500">
-                Court staff accounts, role assignments, and judicial affiliations
+              <div className="flex items-center gap-2">
+                <h2 className="text-base font-bold text-slate-900">User Directory & System Roles</h2>
+                <span className="px-2 py-0.5 rounded text-[10px] font-mono font-medium bg-amber-50 text-amber-800 border border-amber-200">
+                  Mock Data Preview
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Court staff accounts, role assignments, and judicial affiliations &bull; User directory API is not yet connected to backend
               </p>
             </div>
 
@@ -504,9 +641,14 @@ export const AdminDashboardPage: React.FC = () => {
         <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
           <div className="p-5 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <h2 className="text-base font-bold text-slate-900">Case Registry & Oversight</h2>
-              <p className="text-xs text-slate-500">
-                System-wide case tracking and status disposition monitoring
+              <div className="flex items-center gap-2">
+                <h2 className="text-base font-bold text-slate-900">Case Registry & Oversight</h2>
+                <span className="px-2 py-0.5 rounded text-[10px] font-mono font-medium bg-amber-50 text-amber-800 border border-amber-200">
+                  Mock Data Preview
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 mt-0.5">
+                System-wide case tracking and status disposition monitoring &bull; Full case registry API is not yet connected to backend
               </p>
             </div>
 
@@ -594,9 +736,14 @@ export const AdminDashboardPage: React.FC = () => {
       {activeTab === 'judges' && (
         <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
           <div className="p-5 border-b border-slate-200">
-            <h2 className="text-base font-bold text-slate-900">Judicial Officers Bench Roster</h2>
-            <p className="text-xs text-slate-500">
-              Active judges, courtroom assignments, and caseload distribution
+            <div className="flex items-center gap-2">
+              <h2 className="text-base font-bold text-slate-900">Judicial Officers Bench Roster</h2>
+              <span className="px-2 py-0.5 rounded text-[10px] font-mono font-medium bg-amber-50 text-amber-800 border border-amber-200">
+                Mock Data Preview
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Active judges, courtroom assignments, and caseload distribution &bull; Personnel roster API is not yet connected to backend
             </p>
           </div>
 
@@ -637,9 +784,14 @@ export const AdminDashboardPage: React.FC = () => {
         <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
           <div className="p-5 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <h2 className="text-base font-bold text-slate-900">Litigants & Parties Registry</h2>
-              <p className="text-xs text-slate-500">
-                Verified litigants, legal representatives, and procedural status
+              <div className="flex items-center gap-2">
+                <h2 className="text-base font-bold text-slate-900">Litigants & Parties Registry</h2>
+                <span className="px-2 py-0.5 rounded text-[10px] font-mono font-medium bg-amber-50 text-amber-800 border border-amber-200">
+                  Mock Data Preview
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Verified litigants, legal representatives, and procedural status &bull; Parties directory API is not yet connected to backend
               </p>
             </div>
 
@@ -844,4 +996,15 @@ export const AdminDashboardPage: React.FC = () => {
       )}
     </div>
   );
+};
+
+export const AdminDashboardPage: React.FC = () => {
+  const { user } = useAuth();
+
+  if (!user) {
+    return null;
+  }
+
+  // Key by both user_id and role to guarantee full in-memory state reset on account switch
+  return <AdminDashboardContent key={`${user.user_id}:${user.role}`} user={user} />;
 };

@@ -30,9 +30,9 @@ import {
   Save,
 } from 'lucide-react';
 import { useAuth } from '../context';
+import { useDashboardData } from '../hooks';
 import { StatCard, StatusBadge, EmptyState } from '../components';
 import {
-  getMockJudgeDashboard,
   getMockJudgeAssignedCases,
   getMockJudicialOfficer,
   getMockCaseDetail,
@@ -151,13 +151,22 @@ const JudgeDashboardContent: React.FC<JudgeDashboardContentProps> = ({ judgeId, 
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = resolveActiveTab('judge', searchParams.get('tab')) as JudgeTab;
 
-  const dashboardData = getMockJudgeDashboard(judgeId);
+  const {
+    data: liveData,
+    isLoading,
+    error,
+    refetch,
+  } = useDashboardData('judge', { expectedJudgeId: judgeId, userId: user.user_id });
+
   const assignedCases: PresidingCaseRecord[] = getMockJudgeAssignedCases(judgeId);
   const judicialOfficer = getMockJudicialOfficer(judgeId);
 
+  const upcomingHearings = liveData?.upcoming_hearings ?? [];
+  const assignedHearingsCount = liveData?.assigned_hearings_count ?? upcomingHearings.length;
+
   // Default selected case for this specific judge
   const defaultCaseId =
-    assignedCases[0]?.case_id ?? dashboardData?.upcoming_hearings[0]?.case_id ?? '';
+    assignedCases[0]?.case_id ?? upcomingHearings[0]?.case_id ?? '';
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
 
   // If user hasn't explicitly inspected or selected a case, use defaultCaseId;
@@ -173,8 +182,8 @@ const JudgeDashboardContent: React.FC<JudgeDashboardContentProps> = ({ judgeId, 
     setActiveTab('details');
   };
 
-  // Case 2: No judge-specific mock records found for this judge_id (Do NOT silently show another judge's data!)
-  if (!dashboardData) {
+  // 1. Loading state
+  if (isLoading) {
     return (
       <div className="space-y-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-6 border-b border-slate-200">
@@ -184,7 +193,33 @@ const JudgeDashboardContent: React.FC<JudgeDashboardContentProps> = ({ judgeId, 
               Judicial Chambers & Bench Portal
             </h1>
             <p className="text-sm text-slate-500 mt-1">
-              Docket oversight, assigned hearings, and judicial review (Mock Data Preview)
+              Live docket oversight, assigned hearings, and judicial review
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-col items-center justify-center py-24 space-y-4">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-amber-600" />
+          <p className="text-sm font-medium text-slate-500">
+            Connecting to court docket and loading assigned hearings...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // 2. Error state (with retry)
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-6 border-b border-slate-200">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2.5">
+              <Scale className="h-7 w-7 text-amber-600" />
+              Judicial Chambers & Bench Portal
+            </h1>
+            <p className="text-sm text-slate-500 mt-1">
+              Live docket oversight, assigned hearings, and judicial review
             </p>
           </div>
 
@@ -199,16 +234,45 @@ const JudgeDashboardContent: React.FC<JudgeDashboardContentProps> = ({ judgeId, 
           </div>
         </div>
 
+        <div className="p-6 bg-white rounded-xl border border-rose-200 shadow-xs space-y-4">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="h-6 w-6 text-rose-600 shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <h3 className="text-base font-semibold text-rose-900">
+                Judicial Docket Connection Error
+              </h3>
+              <p className="text-sm text-rose-700">{error}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 pt-2">
+            <button
+              type="button"
+              onClick={() => void refetch()}
+              className="px-4 py-2 rounded-lg text-xs font-semibold bg-amber-600 hover:bg-amber-700 text-white transition-colors cursor-pointer"
+            >
+              Retry Connection
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!liveData) {
+    return (
+      <div className="space-y-6">
         <EmptyState
-          title="No Judicial Records Found"
-          description={`No court dockets, presiding cases, or upcoming hearings were found for Judge ID "${judgeId}".`}
-          icon={CalendarCheck}
+          title="Judicial Docket Unavailable"
+          description="Assigned hearings and bench docket records could not be retrieved from the server."
+          icon={Scale}
+          actionLabel="Retry Connection"
+          onAction={() => void refetch()}
         />
       </div>
     );
   }
 
-  const nextHearing = dashboardData.upcoming_hearings[0] || null;
+  const nextHearing = upcomingHearings[0] || null;
   const caseDetail = getMockCaseDetail(judgeId, effectiveCaseId);
 
   return (
@@ -224,12 +288,12 @@ const JudgeDashboardContent: React.FC<JudgeDashboardContentProps> = ({ judgeId, 
             <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200">
               {judicialOfficer?.division || 'Judicial Officer'}
             </span>
-            <span className="px-2 py-0.5 rounded text-[10px] font-mono font-medium bg-slate-100 text-slate-600 border border-slate-200">
-              Mock Data Preview
+            <span className="px-2 py-0.5 rounded text-[10px] font-mono font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+              Live Docket Connected
             </span>
           </div>
           <p className="text-sm text-slate-500 mt-1">
-            Docket oversight, assigned hearings, and case review (Judge-scoped mock preview) for{' '}
+            Live docket oversight and scheduled proceedings for{' '}
             <span className="font-semibold text-slate-700">
               {judicialOfficer?.name || user?.username}
             </span>
@@ -262,7 +326,7 @@ const JudgeDashboardContent: React.FC<JudgeDashboardContentProps> = ({ judgeId, 
             key: 'hearings',
             label: 'My Hearing Docket',
             icon: CalendarCheck,
-            count: dashboardData.upcoming_hearings.length,
+            count: upcomingHearings.length,
           },
           {
             key: 'cases',
@@ -311,7 +375,7 @@ const JudgeDashboardContent: React.FC<JudgeDashboardContentProps> = ({ judgeId, 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <StatCard
               title="Assigned Hearings"
-              value={dashboardData.assigned_hearings_count}
+              value={assignedHearingsCount}
               subtitle="Scheduled on bench docket"
               icon={CalendarCheck}
               accent="amber"
@@ -410,7 +474,7 @@ const JudgeDashboardContent: React.FC<JudgeDashboardContentProps> = ({ judgeId, 
               </button>
             </div>
 
-            {dashboardData.upcoming_hearings.length > 0 ? (
+            {upcomingHearings.length > 0 ? (
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
                   <thead className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
@@ -423,7 +487,7 @@ const JudgeDashboardContent: React.FC<JudgeDashboardContentProps> = ({ judgeId, 
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {dashboardData.upcoming_hearings.map((h, idx) => (
+                    {upcomingHearings.map((h, idx) => (
                       <tr
                         key={h.hearing_id ?? `jh-prev-${idx}`}
                         className="hover:bg-slate-50/80 transition-colors"
@@ -489,7 +553,7 @@ const JudgeDashboardContent: React.FC<JudgeDashboardContentProps> = ({ judgeId, 
             </p>
           </div>
 
-          {dashboardData.upcoming_hearings.length > 0 ? (
+          {upcomingHearings.length > 0 ? (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
@@ -503,7 +567,7 @@ const JudgeDashboardContent: React.FC<JudgeDashboardContentProps> = ({ judgeId, 
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {dashboardData.upcoming_hearings.map((h, idx) => (
+                  {upcomingHearings.map((h, idx) => (
                     <tr
                       key={h.hearing_id ?? `jh-all-${idx}`}
                       className="hover:bg-slate-50/80 transition-colors"
@@ -561,11 +625,18 @@ const JudgeDashboardContent: React.FC<JudgeDashboardContentProps> = ({ judgeId, 
       {/* TAB CONTENT 3: ASSIGNED CASES */}
       {activeTab === 'cases' && (
         <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
-          <div className="p-5 border-b border-slate-200">
-            <h2 className="text-base font-bold text-slate-900">Cases Assigned to Your Bench</h2>
-            <p className="text-xs text-slate-500">
-              Active and pending matters currently assigned to {judicialOfficer?.name || 'your honor'}
-            </p>
+          <div className="p-5 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-base font-bold text-slate-900">Cases Assigned to Your Bench</h2>
+                <span className="px-2 py-0.5 rounded text-[10px] font-mono font-medium bg-amber-50 text-amber-800 border border-amber-200">
+                  Mock Data Preview
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Active and pending matters currently assigned to {judicialOfficer?.name || 'your honor'} &bull; Case assignment registry API is not yet connected
+              </p>
+            </div>
           </div>
 
           {assignedCases.length > 0 ? (

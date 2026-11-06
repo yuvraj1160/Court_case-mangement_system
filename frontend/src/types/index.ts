@@ -162,3 +162,21 @@ export type DashboardResponse =
   | AdminDashboardResponse
   | ClerkDashboardResponse
   | JudgeDashboardResponse;
+
+export type DashboardDataForRole<T extends UserRole> =
+  T extends 'admin'
+    ? AdminDashboardData
+    : T extends 'clerk'
+    ? ClerkDashboardData
+    : T extends 'judge'
+    ? JudgeDashboardData
+    : never;
+
+export type DashboardResponseForRole<T extends UserRole> =
+  T extends 'admin'
+    ? AdminDashboardResponse
+    : T extends 'clerk'
+    ? ClerkDashboardResponse
+    : T extends 'judge'
+    ? JudgeDashboardResponse
+    : never;

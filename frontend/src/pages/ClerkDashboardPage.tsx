@@ -27,11 +27,10 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { useAuth } from '../context';
+import { useDashboardData } from '../hooks';
 import { StatCard, StatusBadge, EmptyState } from '../components';
 import {
-  MOCK_CLERK_DASHBOARD,
   MOCK_PARTIES_ROSTER,
-  getMockFilingStatus,
 } from '../data/mockDashboardData';
 import {
   resolveActiveTab,
@@ -39,11 +38,16 @@ import {
   formatDateSafe,
   formatTimeSafe,
   formatDateTimeSafe,
+  getLiveFilingStatus,
   type ClerkTab,
 } from '../layouts/dashboardNavigation';
+import type { User } from '../types';
 
-export const ClerkDashboardPage: React.FC = () => {
-  const { user } = useAuth();
+interface ClerkDashboardContentProps {
+  user: User;
+}
+
+const ClerkDashboardContent: React.FC<ClerkDashboardContentProps> = ({ user }) => {
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = resolveActiveTab('clerk', searchParams.get('tab')) as ClerkTab;
 
@@ -57,11 +61,137 @@ export const ClerkDashboardPage: React.FC = () => {
     setSearchParams((prev) => buildPreservedTabSearchParams(prev, tab));
   };
 
-  const dashboardData = MOCK_CLERK_DASHBOARD;
+  const {
+    data: dashboardData,
+    isLoading,
+    error,
+    refetch,
+  } = useDashboardData('clerk', { userId: user.user_id });
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-6 border-b border-slate-200">
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2.5">
+                <ClipboardList className="h-7 w-7 text-emerald-600" />
+                Office of the Court Clerk
+              </h1>
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                Operations & Registry
+              </span>
+            </div>
+            <p className="text-sm text-slate-500 mt-1">
+              Docket intake, document filings, litigants register, and calendar coordination
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-col items-center justify-center py-24 space-y-4">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-emerald-600" />
+          <p className="text-sm font-medium text-slate-500">
+            Connecting to registry and loading operational intake data...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-6 border-b border-slate-200">
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2.5">
+                <ClipboardList className="h-7 w-7 text-emerald-600" />
+                Office of the Court Clerk
+              </h1>
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                Operations & Registry
+              </span>
+            </div>
+            <p className="text-sm text-slate-500 mt-1">
+              Docket intake, document filings, litigants register, and calendar coordination
+            </p>
+          </div>
+
+          <div className="flex items-center space-x-3 bg-white px-4 py-2.5 rounded-xl border border-slate-200 shadow-xs">
+            <div className="h-9 w-9 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-sm uppercase border border-emerald-100">
+              {user?.username.charAt(0) || 'C'}
+            </div>
+            <div className="text-left text-xs">
+              <p className="font-semibold text-slate-900">{user?.username}</p>
+              <p className="text-slate-500">Registry Clerk &bull; UID #{user?.user_id}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="p-6 bg-white rounded-xl border border-rose-200 shadow-xs space-y-4">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="h-6 w-6 text-rose-600 shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <h3 className="text-base font-semibold text-rose-900">
+                Registry API Connection Error
+              </h3>
+              <p className="text-sm text-rose-700">{error}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 pt-2">
+            <button
+              type="button"
+              onClick={() => void refetch()}
+              className="px-4 py-2 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white transition-colors cursor-pointer"
+            >
+              Retry Connection
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!dashboardData) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-6 border-b border-slate-200">
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2.5">
+                <ClipboardList className="h-7 w-7 text-emerald-600" />
+                Office of the Court Clerk
+              </h1>
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                Operations & Registry
+              </span>
+            </div>
+            <p className="text-sm text-slate-500 mt-1">
+              Docket intake, document filings, litigants register, and calendar coordination
+            </p>
+          </div>
+        </div>
+
+        <EmptyState
+          title="Registry Operations Data Unavailable"
+          description="Case intake records and operational summary could not be retrieved from the server."
+          icon={ClipboardList}
+          actionLabel="Retry Connection"
+          onAction={() => void refetch()}
+        />
+      </div>
+    );
+  }
+
   const op = dashboardData.operational_summary;
+  const recentCases = dashboardData.recent_cases;
+  const recentFilings = dashboardData.recent_filings;
+  const upcomingHearings = dashboardData.upcoming_hearings;
 
   // Filtered cases
-  const filteredCases = dashboardData.recent_cases.filter((c) => {
+  const filteredCases = recentCases.filter((c) => {
     const matchesSearch =
       !caseSearch ||
       (c.case_number && c.case_number.toLowerCase().includes(caseSearch.toLowerCase()));
@@ -71,7 +201,7 @@ export const ClerkDashboardPage: React.FC = () => {
     return matchesSearch && matchesStatus;
   });
 
-  // Filtered parties
+  // Filtered parties (Mock Preview)
   const filteredParties = MOCK_PARTIES_ROSTER.filter((p) => {
     return (
       p.name.toLowerCase().includes(partySearch.toLowerCase()) ||
@@ -81,7 +211,7 @@ export const ClerkDashboardPage: React.FC = () => {
   });
 
   // Filtered filings
-  const filteredFilings = dashboardData.recent_filings.filter((f) => {
+  const filteredFilings = recentFilings.filter((f) => {
     return (
       (f.filing_type && f.filing_type.toLowerCase().includes(filingSearch.toLowerCase())) ||
       (f.case_number && f.case_number.toLowerCase().includes(filingSearch.toLowerCase())) ||
@@ -101,6 +231,9 @@ export const ClerkDashboardPage: React.FC = () => {
             </h1>
             <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
               Operations & Registry
+            </span>
+            <span className="px-2 py-0.5 rounded text-[10px] font-mono font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+              Live Registry Connected
             </span>
           </div>
           <p className="text-sm text-slate-500 mt-1">
@@ -124,7 +257,7 @@ export const ClerkDashboardPage: React.FC = () => {
       <div className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-slate-200 text-xs">
         {[
           { key: 'overview', label: 'Operations Overview', icon: Activity },
-          { key: 'cases', label: 'Case Management', icon: FolderOpen, count: dashboardData.total_cases },
+          { key: 'cases', label: 'Case Management', icon: FolderOpen, count: op.total_cases },
           { key: 'parties', label: 'Parties & Litigants', icon: Users, count: MOCK_PARTIES_ROSTER.length },
           { key: 'filings', label: 'Document Filings', icon: FileText, count: op.recent_filings_count },
           { key: 'hearings', label: 'Hearing Calendar', icon: Calendar, count: op.upcoming_hearings_count },
@@ -259,10 +392,10 @@ export const ClerkDashboardPage: React.FC = () => {
                   </button>
                 </div>
 
-                {dashboardData.recent_filings.length > 0 ? (
+                {recentFilings.length > 0 ? (
                   <div className="space-y-3">
-                    {dashboardData.recent_filings.map((filing, idx) => {
-                      const filingStatus = getMockFilingStatus(filing);
+                    {recentFilings.map((filing, idx) => {
+                      const filingStatus = getLiveFilingStatus(filing);
                       return (
                         <div
                           key={filing.filing_id ?? `filing-prev-${idx}`}
@@ -282,7 +415,9 @@ export const ClerkDashboardPage: React.FC = () => {
                                     ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                                     : filingStatus === 'Under Review'
                                     ? 'bg-sky-50 text-sky-700 border-sky-200'
-                                    : 'bg-amber-50 text-amber-700 border-amber-200'
+                                    : filingStatus === 'Rejected'
+                                    ? 'bg-rose-50 text-rose-700 border-rose-200'
+                                    : 'bg-slate-100 text-slate-600 border-slate-200'
                                 }`}
                               >
                                 {filingStatus}
@@ -337,9 +472,9 @@ export const ClerkDashboardPage: React.FC = () => {
                   </button>
                 </div>
 
-                {dashboardData.recent_cases.length > 0 ? (
+                {recentCases.length > 0 ? (
                   <div className="space-y-3">
-                    {dashboardData.recent_cases.slice(0, 4).map((c, idx) => (
+                    {recentCases.slice(0, 4).map((c, idx) => (
                       <div
                         key={c.case_id ?? `case-prev-${idx}`}
                         className="p-3 rounded-lg border border-slate-100 bg-slate-50 hover:bg-slate-100/80 transition-colors flex items-center justify-between text-xs"
@@ -373,7 +508,7 @@ export const ClerkDashboardPage: React.FC = () => {
 
               <div className="mt-4 pt-3 border-t border-slate-100 text-center">
                 <span className="text-[11px] text-slate-500">
-                  {dashboardData.total_cases} total docketed cases in registry
+                  {op.total_cases} total docketed cases in registry
                 </span>
               </div>
             </div>
@@ -490,9 +625,14 @@ export const ClerkDashboardPage: React.FC = () => {
         <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
           <div className="p-5 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <h2 className="text-base font-bold text-slate-900">Parties & Litigants Roster</h2>
-              <p className="text-xs text-slate-500">
-                Verify legal representation, party roles, and process service status
+              <div className="flex items-center gap-2">
+                <h2 className="text-base font-bold text-slate-900">Parties & Litigants Roster</h2>
+                <span className="px-2 py-0.5 rounded text-[10px] font-mono font-medium bg-amber-50 text-amber-800 border border-amber-200">
+                  Mock Data Preview
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Verify legal representation, party roles, and process service status &bull; Litigants directory API is not yet connected to backend
               </p>
             </div>
 
@@ -599,7 +739,7 @@ export const ClerkDashboardPage: React.FC = () => {
               <tbody className="divide-y divide-slate-100">
                 {filteredFilings.length > 0 ? (
                   filteredFilings.map((f, idx) => {
-                    const filingStatus = getMockFilingStatus(f);
+                    const filingStatus = getLiveFilingStatus(f);
                     return (
                       <tr key={f.filing_id ?? `filing-clerk-${idx}`} className="hover:bg-slate-50/80 transition-colors">
                         <td className="px-5 py-3 font-mono text-slate-500 font-medium">{f.filing_id}</td>
@@ -618,7 +758,7 @@ export const ClerkDashboardPage: React.FC = () => {
                                 ? 'bg-sky-50 text-sky-700 border-sky-200'
                                 : filingStatus === 'Rejected'
                                 ? 'bg-rose-50 text-rose-700 border-rose-200'
-                                : 'bg-amber-50 text-amber-700 border-amber-200'
+                                : 'bg-slate-100 text-slate-600 border-slate-200'
                             }`}
                           >
                             <span>{filingStatus}</span>
@@ -666,8 +806,8 @@ export const ClerkDashboardPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {dashboardData.upcoming_hearings.length > 0 ? (
-                  dashboardData.upcoming_hearings.map((h, idx) => (
+                {upcomingHearings.length > 0 ? (
+                  upcomingHearings.map((h, idx) => (
                     <tr key={h.hearing_id ?? `hearing-clerk-${idx}`} className="hover:bg-slate-50/80 transition-colors">
                       <td className="px-5 py-3 font-mono text-slate-500 font-medium">{h.hearing_id}</td>
                       <td className="px-5 py-3 font-bold text-slate-900 font-mono">{h.case_number}</td>
@@ -727,4 +867,15 @@ export const ClerkDashboardPage: React.FC = () => {
       )}
     </div>
   );
+};
+
+export const ClerkDashboardPage: React.FC = () => {
+  const { user } = useAuth();
+
+  if (!user) {
+    return null;
+  }
+
+  // Key by both user_id and role to guarantee full in-memory state reset on account switch
+  return <ClerkDashboardContent key={`${user.user_id}:${user.role}`} user={user} />;
 };
