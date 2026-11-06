@@ -6,7 +6,7 @@
  * and ref-based lifecycle guards against React StrictMode duplicate execution.
  */
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { AuthContext, type AuthContextType } from './auth-context';
 import { AuthSessionController, type AuthState } from './authSessionController';
 
@@ -25,6 +25,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   });
 
   const controller = useMemo(() => new AuthSessionController(), []);
+
+  // Stable authentication action references depending only on controller
+  const login = useCallback(
+    (username: string, password: string) => controller.login(username, password),
+    [controller]
+  );
+
+  const logout = useCallback(
+    () => controller.logout(),
+    [controller]
+  );
+
+  const refreshUser = useCallback(
+    () => controller.refreshUser(),
+    [controller]
+  );
 
   // Centralized startup session validation reuses refreshUser()
   // Guarded against React StrictMode effect replay via didInitializeRef
@@ -57,11 +73,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       user: state.user,
       loading: state.loading,
       error: state.error,
-      login: (u, p) => controller.login(u, p),
-      logout: () => controller.logout(),
-      refreshUser: () => controller.refreshUser(),
+      login,
+      logout,
+      refreshUser,
     }),
-    [state.user, state.loading, state.error, controller]
+    [state.user, state.loading, state.error, login, logout, refreshUser]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

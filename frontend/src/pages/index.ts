@@ -5,4 +5,4 @@ export * from './LoginPage';
 export * from './NotFoundPage';
 export * from './RootRedirect';
 export * from './HomePage';
-
+export * from './loginSubmissionController';

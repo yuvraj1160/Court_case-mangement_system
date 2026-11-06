@@ -125,31 +125,35 @@ export class AuthSessionController {
   /**
    * Authenticate credentials via POST /auth/login.
    * Increments generation counter to invalidate any pending /auth/me requests.
+   * Returns the authenticated User upon successful completion and state transition.
    */
-  public async login(username: string, password: string): Promise<void> {
+  public async login(username: string, password: string): Promise<User> {
     const currentGen = ++this.generation;
     this.updateState({ loading: true });
 
     try {
       const response = await this.api.login(username, password);
       if (currentGen === this.generation) {
+        let authenticatedUser: User | null = null;
         if (response && response.user) {
-          this.updateState({
-            user: response.user,
-            error: null,
-            loading: false,
-          });
+          authenticatedUser = response.user;
         } else {
           const fresh = await this.api.getCurrentUser();
           if (currentGen === this.generation) {
-            this.updateState({
-              user: fresh.user,
-              error: null,
-              loading: false,
-            });
+            authenticatedUser = fresh.user;
           }
         }
+
+        if (authenticatedUser) {
+          this.updateState({
+            user: authenticatedUser,
+            error: null,
+            loading: false,
+          });
+          return authenticatedUser;
+        }
       }
+      throw new Error('Login state transition superseded by concurrent action.');
     } finally {
       if (currentGen === this.generation) {
         this.updateState({ loading: false });

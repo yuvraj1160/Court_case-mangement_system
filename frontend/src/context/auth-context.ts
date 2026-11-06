@@ -9,7 +9,7 @@ export interface AuthContextType {
   user: User | null;
   loading: boolean;
   error: string | null;
-  login: (username: string, password: string) => Promise<void>;
+  login: (username: string, password: string) => Promise<User>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
