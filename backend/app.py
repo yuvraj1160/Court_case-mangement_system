@@ -438,6 +438,12 @@ def create_app(
     from backend.dashboard.routes import dashboard_bp
     app.register_blueprint(dashboard_bp, url_prefix="/api")
 
+    from backend.cases.routes import cases_bp
+    app.register_blueprint(cases_bp, url_prefix="/api/cases")
+
+    from backend.parties.routes import parties_bp
+    app.register_blueprint(parties_bp, url_prefix="/api/parties")
+
     # -----------------------------------------------------------------------
     # Core Endpoints
     # -----------------------------------------------------------------------
