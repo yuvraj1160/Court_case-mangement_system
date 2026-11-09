@@ -15,6 +15,7 @@ Safety Rules:
 import logging
 import os
 from typing import Any, Mapping, Optional
+import zoneinfo
 
 from flask import Flask, jsonify
 import psycopg
@@ -22,6 +23,7 @@ import psycopg
 from backend.config import Config
 from backend.db import execute_read_query
 from backend.extensions import (
+    CANONICAL_ENVIRONMENT_MAP,
     csrf,
     get_execution_environment,
     is_production_environment,
@@ -155,6 +157,52 @@ def _validate_effective_config(config_mapping: Mapping[str, Any]) -> None:
         )
 
 
+def resolve_and_validate_court_timezone(
+    config_mapping: Mapping[str, Any],
+    canonical_env: str,
+) -> zoneinfo.ZoneInfo:
+    """
+    Resolve and validate the court jurisdiction's timezone.
+
+    Rules:
+      - For production and staging environments (canonical category not in 'development', 'test'):
+        COURT_TIMEZONE must be explicitly configured and valid in zoneinfo.ZoneInfo.
+        Startup fails immediately with RuntimeError if missing or invalid.
+      - For isolated development and test environments:
+        Falls back to 'UTC' if COURT_TIMEZONE is missing or empty.
+        If COURT_TIMEZONE is provided, it must be valid in zoneinfo.ZoneInfo.
+      - Never infers or hardcodes a specific local jurisdiction.
+
+    Returns:
+        zoneinfo.ZoneInfo: The validated timezone object.
+
+    Raises:
+        RuntimeError: If timezone configuration is missing in non-dev/test or invalid.
+    """
+    raw_tz = config_mapping.get("COURT_TIMEZONE") or os.getenv("COURT_TIMEZONE")
+    canonical_category = CANONICAL_ENVIRONMENT_MAP.get(canonical_env, canonical_env)
+
+    is_dev_or_test = canonical_category in ("development", "test")
+
+    if not raw_tz or not str(raw_tz).strip():
+        if is_dev_or_test:
+            logger.info("COURT_TIMEZONE not set in %s mode. Defaulting to 'UTC'.", canonical_env)
+            return zoneinfo.ZoneInfo("UTC")
+        raise RuntimeError(
+            f"COURT_TIMEZONE must be explicitly configured for '{canonical_env}' deployments. "
+            "Configure COURT_TIMEZONE to the IANA timezone identifier of the court jurisdiction."
+        )
+
+    clean_tz = str(raw_tz).strip()
+    try:
+        return zoneinfo.ZoneInfo(clean_tz)
+    except (zoneinfo.ZoneInfoNotFoundError, ValueError):
+        raise RuntimeError(
+            f"Invalid COURT_TIMEZONE configured: '{clean_tz}'. "
+            "Must be a valid IANA time zone identifier (e.g. 'UTC', 'America/New_York', 'Asia/Kolkata')."
+        ) from None
+
+
 def create_app(
     config_class=Config,
     config_overrides: Optional[dict] = None,
@@ -218,9 +266,11 @@ def create_app(
             app.config["DEBUG"] = bool(raw_debug)
 
     # -----------------------------------------------------------------------
-    # Validate the Effective Application Configuration
+    # Validate the Effective Application Configuration & Court Timezone
     # -----------------------------------------------------------------------
     _validate_effective_config(app.config)
+    court_tz = resolve_and_validate_court_timezone(app.config, env_name)
+    app.config["COURT_TIMEZONE"] = court_tz.key
 
     # -----------------------------------------------------------------------
     # Server-Side Session Storage Configuration & Production Enforcement
@@ -443,6 +493,15 @@ def create_app(
 
     from backend.parties.routes import parties_bp
     app.register_blueprint(parties_bp, url_prefix="/api/parties")
+
+    from backend.hearings.routes import hearings_bp
+    app.register_blueprint(hearings_bp, url_prefix="/api/hearings")
+
+    from backend.filings.routes import filings_bp
+    app.register_blueprint(filings_bp, url_prefix="/api/filings")
+
+    from backend.adjournments.routes import adjournments_bp
+    app.register_blueprint(adjournments_bp, url_prefix="/api/adjournments")
 
     # -----------------------------------------------------------------------
     # Core Endpoints

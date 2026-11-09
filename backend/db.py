@@ -14,12 +14,28 @@ Safety Rules:
 """
 
 import logging
+import os
 from typing import Any, Callable, Optional, Sequence, Union
 import psycopg
 
 from backend.config import Config
 
 logger = logging.getLogger(__name__)
+
+
+class DatabaseWriteError(Exception):
+    """Base exception for database write transaction failures."""
+    pass
+
+
+class StatementTimeoutError(DatabaseWriteError):
+    """Raised when a query or lock wait times out during statement execution with confirmed rollback."""
+    pass
+
+
+class UncertainCommitError(DatabaseWriteError):
+    """Raised when a connection interruption or cancellation occurs during COMMIT, leaving the outcome uncertain."""
+    pass
 
 
 def get_db_connection(row_factory: Optional[Any] = None) -> psycopg.Connection:
@@ -103,6 +119,7 @@ def execute_write_transaction(
     params: Optional[Sequence[Any]] = None,
     fetch_one: bool = False,
     row_factory: Optional[Any] = None,
+    session_timezone: Optional[str] = None,
 ) -> Any:
     """
     Execute a write operation within an isolated database transaction on court_case_dev.
@@ -112,8 +129,10 @@ def execute_write_transaction(
         raises ValueError otherwise.
       - Sets PostgreSQL session setting 'app.username' locally to the transaction
         via 'SELECT set_config('app.username', %s, true);'.
+      - Sets transaction-local 'TimeZone' setting when session_timezone or COURT_TIMEZONE is configured.
       - When triggers (e.g. log_table_changes) fire, they read current_setting('app.username', true)
         to attribute the mutation in audit_logs.
+      - Explicitly tracks execution phases: 'statement', 'commit', and 'completed'.
       - Automatically COMMITS upon clean exit of the transaction block.
       - Automatically ROLLS BACK if any exception occurs during execution.
       - Uses parameterized SQL only; never concatenates raw inputs.
@@ -126,6 +145,7 @@ def execute_write_transaction(
         fetch_one: If True and query returns rows (e.g., RETURNING), returns one row.
                    Otherwise returns all rows.
         row_factory: Optional psycopg row factory (e.g., dict_row).
+        session_timezone: Optional IANA timezone name for transaction-local TimeZone setting.
 
     Returns:
         If operation is a callable: the result returned by operation(cur).
@@ -137,6 +157,9 @@ def execute_write_transaction(
     Raises:
         ValueError: If actor_username is missing, empty, not a string, or exceeds 50 characters.
         TypeError: If operation is neither a string nor a callable.
+        StatementTimeoutError: If statement/lock timeout occurs during the statement phase (confirmed rollback).
+        UncertainCommitError: If connection is lost or canceled during COMMIT phase (uncertain outcome).
+        DatabaseWriteError: If connection error occurs during statement execution before COMMIT.
         psycopg.Error: On database or SQL execution failure (transaction rolls back).
     """
     if not actor_username or not isinstance(actor_username, str) or not actor_username.strip():
@@ -146,20 +169,69 @@ def execute_write_transaction(
     if len(clean_actor) > 50:
         raise ValueError("actor_username exceeds maximum length of 50 characters.")
 
-    with get_db_connection(row_factory=row_factory) as conn:
-        with conn.transaction():
-            with conn.cursor() as cur:
-                # Set transaction-local actor identity for triggers and audit logging
-                cur.execute("SELECT set_config('app.username', %s, true);", (clean_actor,))
+    target_tz = session_timezone
+    if not target_tz:
+        try:
+            from flask import current_app, has_app_context
+            if has_app_context() and current_app:
+                target_tz = current_app.config.get("COURT_TIMEZONE")
+        except ImportError:
+            pass
+    if not target_tz:
+        target_tz = os.getenv("COURT_TIMEZONE", "")
+    target_tz = str(target_tz).strip()
 
-                if callable(operation):
-                    return operation(cur)
-                elif isinstance(operation, str):
-                    cur.execute(operation, params)
-                    if cur.description is not None:
-                        if fetch_one:
-                            return cur.fetchone()
-                        return cur.fetchall()
-                    return cur.rowcount
-                else:
-                    raise TypeError("operation must be a SQL query string or a callable taking a cursor.")
+    execution_phase = "statement"
+    result = None
+    try:
+        with get_db_connection(row_factory=row_factory) as conn:
+            with conn.transaction():
+                with conn.cursor() as cur:
+                    # Set transaction-local actor identity for triggers and audit logging
+                    cur.execute("SELECT set_config('app.username', %s, true);", (clean_actor,))
+                    if target_tz:
+                        cur.execute("SELECT set_config('TimeZone', %s, true);", (target_tz,))
+
+                    if callable(operation):
+                        result = operation(cur)
+                    elif isinstance(operation, str):
+                        cur.execute(operation, params)
+                        if cur.description is not None:
+                            if fetch_one:
+                                result = cur.fetchone()
+                            else:
+                                result = cur.fetchall()
+                        else:
+                            result = cur.rowcount
+                    else:
+                        raise TypeError("operation must be a SQL query string or a callable taking a cursor.")
+
+                # Statement phase completed without error; advancing to commit phase
+                execution_phase = "commit"
+
+            # Exiting conn.transaction() issues COMMIT on PostgreSQL
+            execution_phase = "completed"
+            return result
+
+    except psycopg.errors.QueryCanceled as exc:
+        if execution_phase == "statement":
+            logger.error("QueryCanceled during statement execution (confirmed rollback): %s", exc)
+            raise StatementTimeoutError("Database operation timed out during statement execution. The transaction was rolled back.") from exc
+        elif execution_phase == "commit":
+            logger.critical("QueryCanceled during COMMIT phase. Outcome is UNCERTAIN: %s", exc)
+            raise UncertainCommitError("Database operation canceled during transaction commit. Outcome is uncertain. Please reconcile records before retrying.") from exc
+        else:
+            logger.warning("QueryCanceled during post-commit connection cleanup. Transaction is COMMITTED: %s", exc)
+            return result
+
+    except psycopg.OperationalError as exc:
+        if execution_phase == "statement":
+            logger.error("OperationalError during statement execution (no COMMIT issued): %s", exc)
+            raise DatabaseWriteError("Database connection error during statement execution. No COMMIT was issued; transaction cannot commit through this request.") from exc
+        elif execution_phase == "commit":
+            logger.critical("Connection lost during COMMIT. Transaction outcome is UNCERTAIN: %s", exc)
+            raise UncertainCommitError("Connection lost during transaction commit. Outcome is uncertain. Please reconcile records before retrying.") from exc
+        else:
+            logger.warning("OperationalError during post-commit connection cleanup. Transaction is COMMITTED: %s", exc)
+            return result
+
