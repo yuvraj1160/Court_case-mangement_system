@@ -16,6 +16,7 @@ import {
   CalendarCheck,
   Briefcase,
   BookOpen,
+  CalendarClock,
 } from 'lucide-react';
 import type { UserRole, RecentFiling } from '../types';
 
@@ -45,8 +46,9 @@ export const CLERK_TAB_KEYS = [
   'overview',
   'cases',
   'parties',
-  'filings',
   'hearings',
+  'filings',
+  'adjournments',
 ] as const;
 
 export const JUDGE_TAB_KEYS = [
@@ -78,8 +80,9 @@ export const CLERK_NAV_ITEMS: NavItemConfig[] = [
   { id: 'overview', label: 'Operations Overview', tabKey: 'overview', icon: LayoutDashboard },
   { id: 'cases', label: 'Case Docket', tabKey: 'cases', icon: FolderOpen },
   { id: 'parties', label: 'Parties & Litigants', tabKey: 'parties', icon: Users },
-  { id: 'filings', label: 'Document Filings', tabKey: 'filings', icon: FileText },
   { id: 'hearings', label: 'Hearing Calendar', tabKey: 'hearings', icon: Calendar },
+  { id: 'filings', label: 'Document Filings', tabKey: 'filings', icon: FileText },
+  { id: 'adjournments', label: 'Hearing Adjournments', tabKey: 'adjournments', icon: CalendarClock },
 ];
 
 export const JUDGE_NAV_ITEMS: NavItemConfig[] = [

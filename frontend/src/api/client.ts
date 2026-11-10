@@ -247,6 +247,15 @@ async function request<T>(
         case 403:
           errorMessage = 'Access forbidden. You do not have permission for this resource.';
           break;
+        case 404:
+          errorMessage = 'Resource not found.';
+          break;
+        case 409:
+          errorMessage = 'Conflict. The requested action conflicts with the current resource state.';
+          break;
+        case 422:
+          errorMessage = 'Unprocessable entity. Input data could not be processed.';
+          break;
         case 429:
           errorMessage = 'Rate limit exceeded. Please wait before retrying.';
           break;
@@ -262,6 +271,22 @@ async function request<T>(
   }
 
   return data as T;
+}
+
+/**
+ * Safely constructs a URL query string from a key-value record.
+ * Omits undefined, null, and empty string values.
+ */
+export function buildQueryString(params?: Record<string, unknown>): string {
+  if (!params) return '';
+  const searchParams = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== null && value !== '') {
+      searchParams.set(key, String(value));
+    }
+  }
+  const str = searchParams.toString();
+  return str ? `?${str}` : '';
 }
 
 export const apiClient = {

@@ -59,17 +59,18 @@ describe('Dashboard Navigation - Role Scoping & Isolation', () => {
     ]);
   });
 
-  test('clerk role returns exactly the 5 operational registry sections', () => {
+  test('clerk role returns exactly the 6 operational registry sections', () => {
     const items = getNavItemsForRole('clerk');
     const tabKeys = items.map((i) => i.tabKey);
 
-    assert.strictEqual(items.length, 5);
+    assert.strictEqual(items.length, 6);
     assert.deepStrictEqual(tabKeys, [
       'overview',
       'cases',
       'parties',
-      'filings',
       'hearings',
+      'filings',
+      'adjournments',
     ]);
 
     // Verification: Clerk must not have admin governance tools
