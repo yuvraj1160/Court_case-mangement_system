@@ -22,3 +22,19 @@ export type {
   JudgeCasesSectionProps,
   JudgeCaseDetailSectionProps,
 } from './judge/index.ts';
+
+export {
+  AdminOverviewSection,
+  AdminUsersSection,
+  AdminCasesSection,
+  AdminHearingsSection,
+  AdminAuditSection,
+  AdminJudgesSection,
+} from './admin/index.ts';
+export type {
+  AdminOverviewSectionProps,
+  AdminUsersSectionProps,
+  AdminCasesSectionProps,
+  AdminAuditSectionProps,
+  AdminJudgesSectionProps,
+} from './admin/index.ts';
