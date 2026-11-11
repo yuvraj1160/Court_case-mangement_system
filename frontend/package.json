@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint src",
-    "test": "node --experimental-strip-types --test tests/csrfManager.test.ts tests/authRoutes.test.ts tests/authConcurrency.test.ts tests/dashboardNavigation.test.ts tests/dashboardApi.test.ts tests/apiIntegration.test.ts tests/clerkWorkflows.test.ts",
+    "test": "node --experimental-strip-types --test tests/csrfManager.test.ts tests/authRoutes.test.ts tests/authConcurrency.test.ts tests/dashboardNavigation.test.ts tests/dashboardApi.test.ts tests/apiIntegration.test.ts tests/clerkWorkflows.test.ts tests/judgeWorkflows.test.ts",
     "preview": "vite preview"
   },
   "dependencies": {
