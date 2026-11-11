@@ -496,10 +496,15 @@ export const JudgeCaseDetailSection: React.FC<JudgeCaseDetailSectionProps> = ({
 
           {/* Judicial Orders on Record */}
           <div className="pt-2">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3 flex items-center gap-1.5">
-              <Gavel className="h-4 w-4 text-slate-400" />
-              <span>Judicial Orders on Record ({caseDetail.orders.length})</span>
-            </h3>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 mb-3">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                <Gavel className="h-4 w-4 text-slate-400" />
+                <span>Judicial Orders on Record ({caseDetail.orders.length})</span>
+              </h3>
+              <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-amber-50 text-amber-700 border border-amber-200 w-fit">
+                Sample Judicial Order — Demonstration Data
+              </span>
+            </div>
 
             {caseDetail.orders.length > 0 ? (
               <div className="space-y-2">
@@ -522,7 +527,7 @@ export const JudgeCaseDetailSection: React.FC<JudgeCaseDetailSectionProps> = ({
                         <span>Entered on Record</span>
                       </span>
                     </div>
-                    <p className="text-slate-700 pl-6 leading-relaxed">{o.details}</p>
+                    <p className="text-slate-700 pl-6 leading-relaxed font-normal">{o.details || 'No description recorded.'}</p>
                   </div>
                 ))}
               </div>

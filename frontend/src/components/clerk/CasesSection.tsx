@@ -797,10 +797,15 @@ export const CasesSection: React.FC = () => {
             {/* Orders List */}
             {caseDetail.orders.length > 0 && (
               <div className="space-y-2">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
-                  <Gavel className="h-3.5 w-3.5 text-slate-500" />
-                  <span>Judicial Orders</span>
-                </h4>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                    <Gavel className="h-3.5 w-3.5 text-slate-500" />
+                    <span>Judicial Orders</span>
+                  </h4>
+                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-50 text-amber-700 border border-amber-200 w-fit">
+                    Sample Judicial Order — Demonstration Data
+                  </span>
+                </div>
                 <div className="space-y-1.5">
                   {caseDetail.orders.map((o) => (
                     <div
@@ -811,7 +816,7 @@ export const CasesSection: React.FC = () => {
                         <span className="text-slate-900 font-semibold">Order by {o.judge_name || 'Court'}</span>
                         <span className="text-slate-500">{formatDateSafe(o.order_date)}</span>
                       </div>
-                      <p className="text-slate-600">{o.details}</p>
+                      <p className="text-slate-600 leading-relaxed font-normal">{o.details || 'No description recorded.'}</p>
                     </div>
                   ))}
                 </div>

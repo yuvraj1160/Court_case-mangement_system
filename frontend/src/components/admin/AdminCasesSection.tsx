@@ -686,10 +686,15 @@ export const AdminCasesSection: React.FC<AdminCasesSectionProps> = ({
               {/* Judicial Orders & Filings Summary */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                    <Gavel className="h-4 w-4 text-indigo-600" />
-                    Judicial Orders ({caseDetail.orders?.length ?? 0})
-                  </h4>
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
+                    <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                      <Gavel className="h-4 w-4 text-indigo-600" />
+                      Judicial Orders ({caseDetail.orders?.length ?? 0})
+                    </h4>
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-amber-50 text-amber-700 border border-amber-200 w-fit">
+                      Sample Judicial Order — Demonstration Data
+                    </span>
+                  </div>
                   {(!caseDetail.orders || caseDetail.orders.length === 0) ? (
                     <p className="text-xs text-slate-500 italic p-3 bg-slate-50 rounded-lg border border-slate-100">
                       No court orders issued.
@@ -697,9 +702,14 @@ export const AdminCasesSection: React.FC<AdminCasesSectionProps> = ({
                   ) : (
                     <div className="divide-y divide-slate-100 border border-slate-200 rounded-lg overflow-hidden">
                       {caseDetail.orders.map((o) => (
-                        <div key={o.order_id} className="p-3 text-xs bg-white">
-                          <div className="font-semibold text-slate-800">{o.details}</div>
-                          <div className="text-slate-500 mt-0.5">{formatDateSafe(o.order_date)}</div>
+                        <div key={o.order_id} className="p-3 text-xs bg-white space-y-1.5">
+                          <div className="flex items-center justify-between text-slate-500 font-medium">
+                            <span className="text-slate-800">
+                              {o.judge_name ? `Issued by ${o.judge_name}` : 'Judicial Order on Record'}
+                            </span>
+                            <span>{formatDateSafe(o.order_date)}</span>
+                          </div>
+                          <p className="text-slate-700 font-normal leading-relaxed">{o.details || 'No description recorded.'}</p>
                         </div>
                       ))}
                     </div>
