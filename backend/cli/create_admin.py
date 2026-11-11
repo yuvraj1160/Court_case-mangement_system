@@ -174,20 +174,95 @@ def bootstrap_admin(
         return False
 
 
+def reset_admin_password(
+    username: str,
+    password: str,
+) -> bool:
+    """
+    Reset the password for an existing administrator in court_case_dev securely.
+
+    Args:
+        username: Validated admin username.
+        password: Raw password (hashed immediately in-memory).
+
+    Returns:
+        bool: True if password reset successfully, False otherwise.
+    """
+    try:
+        validate_password_strength(password, min_length=12)
+    except ValueError as err:
+        logger.error("Admin password reset rejected: password does not meet security requirements (%s).", err)
+        print(f"Error: Password does not meet security requirements: {err}")
+        return False
+
+    clean_username = (username or "").strip()
+    if not clean_username or len(clean_username) < 3 or len(clean_username) > 50:
+        print("Error: Username must be between 3 and 50 characters.")
+        return False
+    if not clean_username.replace("_", "").isalnum():
+        print("Error: Username may only contain alphanumeric characters and underscores.")
+        return False
+
+    try:
+        password_hash = hash_password(password)
+    except Exception as exc:
+        print(f"Error hashing password: {exc}")
+        return False
+
+    try:
+        with get_db_connection() as conn:
+            with conn.transaction():
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "SELECT pg_advisory_xact_lock(%s);",
+                        (ADMIN_BOOTSTRAP_LOCK_KEY,),
+                    )
+
+                    cur.execute(
+                        "SELECT user_id FROM users WHERE username = %s AND role = 'admin';",
+                        (clean_username,),
+                    )
+                    row = cur.fetchone()
+                    if not row:
+                        print(f"Error: Administrator '{clean_username}' not found.")
+                        return False
+
+                    user_id = row[0]
+                    cur.execute(
+                        "UPDATE users SET password = %s WHERE user_id = %s;",
+                        (password_hash, user_id),
+                    )
+                    print(
+                        f"Success: Password for administrator '{clean_username}' reset successfully (user_id: {user_id})."
+                    )
+                    return True
+
+    except psycopg.Error as exc:
+        logger.error("Database error during admin password reset (%s).", type(exc).__name__)
+        print("Error: Database operation failed. Check server logs.")
+        return False
+
+
 def main() -> None:
     """Entry point for the admin bootstrap CLI."""
     parser = argparse.ArgumentParser(
-        description="Bootstrap the initial administrator for Court Case Management System."
+        description="Bootstrap or reset the administrator account for Court Case Management System."
     )
     parser.add_argument(
         "--username",
         help="Admin username (optional; interactively prompted if omitted).",
         default=None,
     )
+    parser.add_argument(
+        "--reset-password",
+        action="store_true",
+        help="Reset password for an existing administrator account.",
+    )
 
     args = parser.parse_args()
 
-    print("\n--- Court Case Management System: Admin Bootstrap ---")
+    mode_label = "Password Reset" if args.reset_password else "Admin Bootstrap"
+    print(f"\n--- Court Case Management System: {mode_label} ---")
 
     if args.username:
         username = args.username.strip()
@@ -206,7 +281,11 @@ def main() -> None:
     # Passwords are NEVER accepted through command-line arguments
     password = prompt_password_interactively()
 
-    success = bootstrap_admin(username, password)
+    if args.reset_password:
+        success = reset_admin_password(username, password)
+    else:
+        success = bootstrap_admin(username, password)
+
     sys.exit(0 if success else 1)
 
 
